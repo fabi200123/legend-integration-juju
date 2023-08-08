@@ -28,7 +28,7 @@ jobs:
           echo "${KUBECONFIG_B64}" | base64 -d > ~/.kube/config
           echo "${CONTROLLERS_B64}" | base64 -d > ~/.local/share/juju/controllers.yaml
 
-          echo "${CONTROLLER_PASSWORD}" | juju login -c finos-legend-v3 -u admin
+          # echo "${CONTROLLER_PASSWORD}" | juju login -c finos-legend-v3 -u admin
 
         env:
           KUBECONFIG_B64: "${{ secrets.KUBECONFIG_B64 }}"
@@ -38,10 +38,10 @@ jobs:
       - name: Refreshing Charms
         run: |
           # Controller name is "finos-legend-v3", model name is "finos-legend"
-          juju switch finos-legend-v3:finos-legend
+          # juju switch finos-legend-v3:finos-legend
                     
           # Running juju status will show us the current revisions of the charms.
-          juju status --relations
+          # juju status --relations
 
           set -x
 
@@ -50,15 +50,15 @@ jobs:
             resource_name=$2
             application_name=$3
             
-            juju resources ${application_name}/0 --details
+            # juju resources ${application_name}/0 --details
 
             download_url=$(curl -sL https://api.charmhub.io/v2/charms/resources/$charm_name/$resource_name/revisions |  jq 'map( .[-1].download.url)'[0] | tr -d '"')
             curl -sLo ${resource_name}_download.oci $download_url
             ls
             sha256sum ${resource_name}_download.oci
-            juju attach-resource --debug $application_name $resource_name=${resource_name}_download.oci
+            # juju attach-resource --debug $application_name $resource_name=${resource_name}_download.oci
 
-            juju resources ${application_name}/0 --details
+            # juju resources ${application_name}/0 --details
 
           #	charmhub_timestamp=$(curl -sL https://api.charmhub.io/v2/charms/resources/$charm_name/$resource_name/revisions |  jq 'map( .[-1]."created-at")'[0] | tr -d '"')
           #	local_timestamp=$(juju resources $application_name --format=json | jq 'map( .[0].timestamp)'[0] | tr -d '"')
@@ -83,12 +83,12 @@ jobs:
           update-images finos-legend-studio-k8s studio-image legend-studio 
 
           # Updates the charm code if available
-          juju refresh legend-engine --channel="latest/edge"
-          juju refresh legend-sdlc --channel="latest/edge"
-          juju refresh legend-studio --channel="latest/edge"
+          # juju refresh legend-engine --channel="latest/edge"
+          # juju refresh legend-sdlc --channel="latest/edge"
+          # juju refresh legend-studio --channel="latest/edge"
                   
           # Running juju status will show us the current revisions of the charms.
-          juju status --relations
+          # juju status --relations
 
       - name: Check Legend Public Instance status
         run: |
