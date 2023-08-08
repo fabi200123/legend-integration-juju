@@ -13,8 +13,7 @@ jobs:
     steps:
       - name: Installing Dependencies
         run: |
-          sudo snap install juju --channel=3.0/stable --classic
-
+          sudo snap install juju --channel=3.1/stable --classic
       - name: Install Docker
         uses: docker-practice/actions-setup-docker@master
 
@@ -27,9 +26,7 @@ jobs:
           mkdir -p ~/.local/share/juju
           echo "${KUBECONFIG_B64}" | base64 -d > ~/.kube/config
           echo "${CONTROLLERS_B64}" | base64 -d > ~/.local/share/juju/controllers.yaml
-
-          echo "${CONTROLLER_PASSWORD}" | juju login -c finos-legend-v3 -u admin
-
+          # echo "${CONTROLLER_PASSWORD}" | juju login -c finos-legend-v3 -u admin
         env:
           KUBECONFIG_B64: "${{ secrets.KUBECONFIG_B64 }}"
           CONTROLLERS_B64: "${{ secrets.CONTROLLERS_B64 }}"
@@ -38,35 +35,27 @@ jobs:
       - name: Refreshing Charms
         run: |
           # Controller name is "finos-legend-v3", model name is "finos-legend"
-          juju switch finos-legend-v3:finos-legend
+          # juju switch finos-legend-v3:finos-legend
                     
           # Running juju status will show us the current revisions of the charms.
-          juju status --relations
-
+          # juju status --relations
           set -x
-
           update-images() {
             charm_name=$1 
             resource_name=$2
             application_name=$3
             
-            juju resources ${application_name}/0 --details
-
+            # juju resources ${application_name}/0 --details
             download_url=$(curl -sL https://api.charmhub.io/v2/charms/resources/$charm_name/$resource_name/revisions |  jq 'map( .[-1].download.url)'[0] | tr -d '"')
             curl -sLo ${resource_name}_download.oci $download_url
             ls
             sha256sum ${resource_name}_download.oci
-            juju attach-resource --debug $application_name $resource_name=${resource_name}_download.oci
-
-            juju resources ${application_name}/0 --details
-
+            # juju attach-resource --debug $application_name $resource_name=${resource_name}_download.oci
+            # juju resources ${application_name}/0 --details
           #	charmhub_timestamp=$(curl -sL https://api.charmhub.io/v2/charms/resources/$charm_name/$resource_name/revisions |  jq 'map( .[-1]."created-at")'[0] | tr -d '"')
           #	local_timestamp=$(juju resources $application_name --format=json | jq 'map( .[0].timestamp)'[0] | tr -d '"')
-
           #	charmhub_timestamp_ut=$(date -d ${charmhub_timestamp} +%s)
           #	local_timestamp_ut=$(date -d ${local_timestamp} +%s)
-
-
           #	if [ $charmhub_timestamp_ut -ge $local_timestamp_ut ];
           #		then 
           #			download_url=$(curl -sL https://api.charmhub.io/v2/charms/resources/$charm_name/$resource_name/revisions |  jq 'map( .[-1].download.url)'[0] | tr -d '"')
@@ -75,21 +64,18 @@ jobs:
           #		else
           #			echo "Already running the latest image."
           #	fi
-
           }
                           
           update-images finos-legend-engine-k8s engine-image legend-engine 
           update-images finos-legend-sdlc-k8s sdlc-image legend-sdlc 
           update-images finos-legend-studio-k8s studio-image legend-studio 
-
           # Updates the charm code if available
-          juju refresh legend-engine --channel="latest/edge"
-          juju refresh legend-sdlc --channel="latest/edge"
-          juju refresh legend-studio --channel="latest/edge"
+          # juju refresh legend-engine --channel="latest/edge"
+          # juju refresh legend-sdlc --channel="latest/edge"
+          # juju refresh legend-studio --channel="latest/edge"
                   
           # Running juju status will show us the current revisions of the charms.
-          juju status --relations
-
+          # juju status --relations
       - name: Check Legend Public Instance status
         run: |
           wait_for_curl() {
@@ -104,13 +90,10 @@ jobs:
               sleep 10
             done
           }
-
           wait_for_curl "https://juju-acct.legend.finos.org/"
           wait_for_curl "https://juju-acct.legend.finos.org/api"
           wait_for_curl "https://juju-acct.legend.finos.org/engine"
-
           echo "Legend is reachable, getting redirected to gitlab."
-
       - name: Send email on failure
         if: failure() && github.event_name == 'schedule'
         uses: vineetchoudhary/mailgun-action@master
