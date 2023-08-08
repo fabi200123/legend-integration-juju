@@ -18,23 +18,6 @@ jobs:
       - name: Install Docker
         uses: docker-practice/actions-setup-docker@master
 
-      # We need the kubeconfig and the controllers.yaml file into our environment
-      # in order to login and refresh the charms.
-      - name: Adding Credentials
-        shell: bash
-        run: |
-          mkdir -p ~/.kube
-          mkdir -p ~/.local/share/juju
-          echo "${KUBECONFIG_B64}" | base64 -d > ~/.kube/config
-          echo "${CONTROLLERS_B64}" | base64 -d > ~/.local/share/juju/controllers.yaml
-
-          echo "${CONTROLLER_PASSWORD}" | juju login -c finos-legend-v3 -u admin
-
-        env:
-          KUBECONFIG_B64: "${{ secrets.KUBECONFIG_B64 }}"
-          CONTROLLERS_B64: "${{ secrets.CONTROLLERS_B64 }}"
-          CONTROLLER_PASSWORD: "${{ secrets.CONTROLLER_PASSWORD }}"
-
       - name: Refreshing Charms
         run: |
           # Controller name is "finos-legend-v3", model name is "finos-legend"
