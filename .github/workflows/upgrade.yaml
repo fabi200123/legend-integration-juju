@@ -1,0 +1,64 @@
+name: Upgrade Juju Controller and Juju Model
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Runs everyday at 00:00. (see https://crontab.guru)
+    - cron: "0 0 * * *"
+
+jobs:
+  build:
+    name: Trigger Juju ugrade controller and model on EKS Deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Installing Dependencies
+        run: |
+          sudo snap install juju --channel=3.1/stable --classic
+      - name: Install Docker
+        uses: docker-practice/actions-setup-docker@master
+
+      # We need the kubeconfig and the controllers.yaml file into our environment
+      # in order to login and refresh the charms.
+      - name: Adding Credentials
+        shell: bash
+        run: |
+          mkdir -p ~/.kube
+          mkdir -p ~/.local/share/juju
+          echo "${KUBECONFIG_B64}" | base64 -d > ~/.kube/config
+          echo "${CONTROLLERS_B64}" | base64 -d > ~/.local/share/juju/controllers.yaml
+          # echo "${CONTROLLER_PASSWORD}" | juju login -c finos-legend-v3 -u admin
+        env:
+          KUBECONFIG_B64: "${{ secrets.KUBECONFIG_B64 }}"
+          CONTROLLERS_B64: "${{ secrets.CONTROLLERS_B64 }}"
+          CONTROLLER_PASSWORD: "${{ secrets.CONTROLLER_PASSWORD }}"
+
+      - name: Upgrade Juju Controller and Juju Model
+        run: |
+          upgrade_controller_and_model() {
+            model = $1
+            juju switch "${model}"
+
+            # Upgrading the controller
+            juju upgrade-controller --agent-version ${AGENT_VERSION}
+
+            # Upgrading the model
+            juju upgrade-model --agent-version ${AGENT_VERSION}
+          }
+
+          # Controller name is "finos-legend-v3", model name is "finos-legend"
+          upgrade_controller_and_model "finos-legend-v3:finos-legend"
+          upgrade_controller_and_model "finos-legend-v3:finos-legend-twin"
+        env:
+          AGENT_VERSION: "${{ secrets.AGENT_VERSION }}"
+
+      - name: Send email on failure
+        if: failure() && github.event_name == 'schedule'
+        uses: vineetchoudhary/mailgun-action@master
+        with:
+          api-key: ${{ secrets.MAILGUN_API_KEY }}
+          domain: ${{ secrets.MAILGUN_DOMAIN }}
+          to: ${{ secrets.EMAIL_TO }}
+          subject: "${{ github.job }} job of ${{ github.repository }} has failed"
+          body: "${{ github.job }} job in worflow ${{ github.workflow }} of ${{ github.repository }} has failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      - name: Send Mail Action Response
+        run: echo "${{ steps.sendmail.outputs.response }}"
