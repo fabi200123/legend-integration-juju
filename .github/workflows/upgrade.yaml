@@ -2,9 +2,11 @@ name: Upgrade Juju Controller and Juju Model
 
 on:
   workflow_dispatch:
-  schedule:
-    # Runs everyday at 00:00. (see https://crontab.guru)
-    - cron: "0 0 * * *"
+    inputs:
+      agent_version:
+        description: 'Upgrade to version'
+        required: true
+        default: '3.1.0'
 
 jobs:
   build:
@@ -32,33 +34,16 @@ jobs:
           CONTROLLERS_B64: "${{ secrets.CONTROLLERS_B64 }}"
           CONTROLLER_PASSWORD: "${{ secrets.CONTROLLER_PASSWORD }}"
 
-      - name: Upgrade Juju Controller and Juju Model
+      - if: ${{ github.event.inputs.agent_version }} > "juju version | cut -d- -f1"
+        name: Upgrade Juju Controller and Juju Model
         run: |
-          upgrade_controller_and_model() {
-            model = $1
-            juju switch "${model}"
+        # Upgrading the controller
+        juju upgrade-controller -c finos-legend-v3 --agent-version ${{ github.event.inputs.agent_version }}
+        
+        # Upgrading the model finos-legend
+        juju upgrade-model -m finos-legend --agent-version ${{ github.event.inputs.agent_version }}
 
-            # Upgrading the controller
-            juju upgrade-controller --agent-version ${AGENT_VERSION}
-
-            # Upgrading the model
-            juju upgrade-model --agent-version ${AGENT_VERSION}
-          }
-
-          # Controller name is "finos-legend-v3", model name is "finos-legend"
-          upgrade_controller_and_model "finos-legend-v3:finos-legend"
-          upgrade_controller_and_model "finos-legend-v3:finos-legend-twin"
+        # Upgrading the model finos-legend-twin
+        juju upgrade-model -m finos-legend-twin --agent-version ${{ github.event.inputs.agent_version }}
         env:
           AGENT_VERSION: "${{ secrets.AGENT_VERSION }}"
-
-      - name: Send email on failure
-        if: failure() && github.event_name == 'schedule'
-        uses: vineetchoudhary/mailgun-action@master
-        with:
-          api-key: ${{ secrets.MAILGUN_API_KEY }}
-          domain: ${{ secrets.MAILGUN_DOMAIN }}
-          to: ${{ secrets.EMAIL_TO }}
-          subject: "${{ github.job }} job of ${{ github.repository }} has failed"
-          body: "${{ github.job }} job in worflow ${{ github.workflow }} of ${{ github.repository }} has failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-      - name: Send Mail Action Response
-        run: echo "${{ steps.sendmail.outputs.response }}"
